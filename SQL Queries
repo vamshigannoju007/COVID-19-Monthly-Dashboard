@@ -1,0 +1,39 @@
+CREATE OR REPLACE VIEW covid_abs_all AS
+WITH vax_month_end AS (
+    SELECT DISTINCT ON (entity, month_)
+        entity,
+        month_,
+        ROUND(one_dose::numeric, 2)      AS one_dose,
+        ROUND(complete_dose::numeric, 2) AS complete_dose
+    FROM (
+        SELECT
+            entity,
+            date_trunc('month', date_)::date AS month_,
+            date_,
+            one_dose,
+            complete_dose
+        FROM covid_vaccines
+        WHERE entity = 'World'
+           OR entity NOT ILIKE 'World%'
+    ) v
+    ORDER BY entity, month_, date_ DESC
+)
+SELECT
+    a.entity,
+    a.month_,
+    a.new_cases,
+    a.new_deaths,
+    CASE
+        WHEN a.new_cases >= 100 THEN a.death_pct
+        ELSE NULL
+    END AS death_pct,
+    a.total_cases,
+    a.total_deaths,
+    v.one_dose,
+    v.complete_dose
+FROM covid_abs a
+LEFT JOIN vax_month_end v
+  ON a.entity = v.entity
+ AND a.month_ = v.month_
+WHERE a.entity = 'World'
+   OR a.entity NOT ILIKE 'World%';
